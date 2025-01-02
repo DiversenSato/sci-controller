@@ -10,8 +10,8 @@ export default tslint.config(
     {
         extends: [
             jslint.configs.recommended,
-            ...tslint.configs.recommended,
-            ...tslint.configs.stylistic,
+            ...tslint.configs.recommendedTypeChecked,
+            ...tslint.configs.stylisticTypeChecked,
         ],
         files: ['**/*.{ts,tsx}'],
         languageOptions: {

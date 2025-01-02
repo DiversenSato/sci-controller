@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.board {
+    position: relative;
+    background-image: url("https://images.chesscomfiles.com/chess-themes/boards/green/200.png");
+    background-size: 100%;
+}
+
+.piece {
+    background-size: 100%;
+    width: 12.5%;
+    height: 12.5%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    cursor: grab;
+
+    $pieces: 'p', 'n', 'b', 'r', 'q', 'k';
+    $colors: 'w', 'b';
+
+    @each $piece in $pieces {
+        @each $color in $colors {
+            &.#{$color}#{$piece} {
+                background-image: url("https://images.chesscomfiles.com/chess-themes/pieces/icy_sea/150/#{$color}#{$piece}.png");
+            }
+        }
+    }
+
+    @for $x from 1 through 8 {
+        @for $y from 1 through 8 {
+            &.square-#{$x}#{$y} {
+                transform: translate(($x - 1) * 100%, (8 - $y) * 100%);
+            }
+        }
+    }
+}
