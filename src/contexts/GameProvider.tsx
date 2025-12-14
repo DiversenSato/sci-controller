@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GameContext } from './GameContext';
 import EngineInterface from '../core/EngineInterface';
 import Piece from '../core/Piece';
@@ -17,11 +17,12 @@ export default function GameProvider({ children }: { children: React.ReactNode }
 
     const [wPlayer, setWPlayer] = useState<Player>();
     const [bPlayer, setBPlayer] = useState<Player>();
-    const [colorToMove, setColorToMove] = useState(Piece.White);
 
     const [state, setState] = useState<GameState>(GameState.PRE_GAME);
     const [gameLog, setGameLog] = useState<string[]>([]);
     const [recentMove, setRecentMove] = useState<number>(0);
+    
+    const colorToMoveRef = useRef(Piece.White);
 
     const loadFEN = useCallback((FEN: string) => {
         setFEN(FEN);
@@ -59,7 +60,7 @@ export default function GameProvider({ children }: { children: React.ReactNode }
         }
         setPieces(newPieces);
 
-        setColorToMove(fields[1] === 'w' ? Piece.White : Piece.Black);
+        colorToMoveRef.current = fields[1] === 'w' ? Piece.White : Piece.Black;
     }, []);
 
     // Set board up only once when this component is first rendered
@@ -94,32 +95,31 @@ export default function GameProvider({ children }: { children: React.ReactNode }
 
         const move = BoardHelper.squareIndexToAlgebraic(sourceSquare) + BoardHelper.squareIndexToAlgebraic(targetSquare);
 
+        setPieces((prev) => {
+            const copy = [...prev];
+            copy[targetSquare] = copy[sourceSquare];
+            copy[sourceSquare] = 0;
+            return copy;
+        });
+        void moveAudio.play();
+        setGameLog((prev) => [...prev, move]);
+        colorToMoveRef.current = colorToMoveRef.current === Piece.Black ? Piece.White : Piece.Black;
+        setRecentMove((sourceSquare << 6) + targetSquare);
+
         if (wPlayer instanceof EngineInterface) await wPlayer.sendCommand(`makeMove ${move}`);
         if (bPlayer instanceof EngineInterface) await bPlayer.sendCommand(`makeMove ${move}`);
 
-        const piecesCopy = [...pieces];
-        const sourcePiece = piecesCopy[sourceSquare];
-        const targetPiece = piecesCopy[targetSquare];
-
-        // if targetPiece is empty then swap pieces
-        if (!targetPiece) {
-            piecesCopy[sourceSquare] = targetPiece;
-            piecesCopy[targetSquare] = sourcePiece;
-        } else {
-            // else replace target and set source to empty
-            piecesCopy[targetSquare] = sourcePiece;
-            piecesCopy[sourceSquare] = 0;
+        const nextPlayer = colorToMoveRef.current === Piece.White ? wPlayer : bPlayer;
+        if (nextPlayer instanceof EngineInterface) {
+            const engineMove = await nextPlayer.sendCommand('bestMove');
+            const from = BoardHelper.algebraicToSquareIndex(engineMove)[0];
+            const to = BoardHelper.algebraicToSquareIndex(engineMove)[1];
+            await playMove(from, to);
         }
-
-        setPieces(piecesCopy);
-        void moveAudio.play();
-        setGameLog((prev) => [...prev, move]);
-        setColorToMove(colorToMove === Piece.Black ? Piece.White : Piece.Black);
-        setRecentMove((sourceSquare << 6) + targetSquare);
     }
 
     function getPlayerToMove() {
-        if (colorToMove === Piece.White) return wPlayer;
+        if (colorToMoveRef.current === Piece.White) return wPlayer;
         return bPlayer;
     }
 
