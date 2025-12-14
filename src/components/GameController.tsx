@@ -3,21 +3,24 @@ import { FormEvent, useId, useState } from 'react';
 import useGame from '../contexts/useGame';
 import FormGroup from './input/form/FormGroup';
 import Input from './input/Input';
-import FormGroupDescription from './input/form/FormGroupDescription';
 import { toast } from 'react-toastify';
 import EngineInterface from '../core/EngineInterface';
-import Piece from '../core/Piece';
 import BoardHelper from '../core/BoardHelper';
 import toastErrorHandler from '../util/toastErrorHandler';
+import Select from './input/Select';
+import Player from '../core/Player';
+import GameState from '../core/GameState';
+import FENEditor from './gameControl/FENEditor';
+import RegisterEngine from './gameControl/RegisterEngine';
 
 export default function GameController() {
     const [command, setCommand] = useState('');
     const [response, setResponse] = useState('');
     const [activeEngine, setActiveEngine] = useState<EngineInterface>();
+    const [tempWPlayer, setTempWPlayer] = useState<Player>(new Player());
+    const [tempBPlayer, setTempBPlayer] = useState<Player>(new Player());
 
-    const newEngineURLID = useId();
     const customCommandInputID = useId();
-    const newEngineNameID = useId();
 
     const game = useGame();
 
@@ -35,19 +38,12 @@ export default function GameController() {
         },
     });
 
-    async function onRegister(e: FormEvent<HTMLFormElement>) {
-        e.preventDefault();
-        const data = new FormData(e.currentTarget);
-        const name = data.get('newEngineName');
-        const url = data.get('newEngineURL');
-        if (!name) return toast.error('Engine name is missing');
-        if (!url) return toast.error('Missing engine url');
-
-        await toast.promise(game.registerEngine(name as string, url as string), {
-            pending: 'Registering...',
-            success: 'Registered engine',
-            error: toastErrorHandler('Registration failed'),
-        });
+    async function onNewGame() {
+        if (game.wPlayer instanceof EngineInterface) await game.wPlayer.sendCommand('newGame');
+        if (game.bPlayer instanceof EngineInterface) await game.bPlayer.sendCommand('newGame');
+        game.clearLog();
+        game.loadFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+        game.gameState = GameState.PRE_GAME;
     }
 
     function onCustomCommand(e: FormEvent<HTMLFormElement>) {
@@ -70,19 +66,19 @@ export default function GameController() {
         game.loadFEN(result);
     }
 
-    function onEnginePlayerAdd() {
-        if (activeEngine) {
-            try {
-                game.addPlayer(activeEngine, Piece.White);
-            } catch (err) {
-                if (err instanceof Error) toast.error(err.message);
-            }
-        } else toast.error('Please select an engine first');
-    }
-
     async function onBestMove() {
         const player = game.getPlayerToMove();
-        const move = await toast.promise(player.engineInterface.sendCommand('bestMove'), {
+        if (!player) {
+            toast.error('There is no player for the color to move');
+            return;
+        }
+
+        if (!(player instanceof EngineInterface)) {
+            toast.error('Player to move is not an engine');
+            return;
+        }
+
+        const move = await toast.promise(player.sendCommand('bestMove'), {
             pending: 'Processing command...',
             success: 'Command successful',
             error: toastErrorHandler(),
@@ -92,21 +88,13 @@ export default function GameController() {
         await game.playMove(parsedMove[0], parsedMove[1]);
     }
 
+    function onStartGame() {
+        game.startGame(tempWPlayer, tempBPlayer);
+    }
+
     return (
-        <div className='grow'>
-            <form onSubmit={onRegister}>
-                <h2 className='text-2xl'>Register a new engine</h2>
-                <FormGroup>
-                    <label htmlFor={newEngineURLID}>Engine URL*</label>
-                    <Input type='url' id={newEngineURLID} name='newEngineURL' required />
-                    <FormGroupDescription>Must be a valid url</FormGroupDescription>
-                </FormGroup>
-                <FormGroup>
-                    <label htmlFor={newEngineNameID}>Engine name*</label>
-                    <Input type='text' id={newEngineNameID} name='newEngineName' placeholder='Example: stockfish' required />
-                </FormGroup>
-                <button className='border px-2' type='submit'>Register</button>
-            </form>
+        <div className='grow py-4'>
+            <RegisterEngine />
             {game.engines.length > 0 &&
                 <div className='mt-8'>
                     <h2 className='text-2xl'>Engines</h2>
@@ -120,9 +108,14 @@ export default function GameController() {
                         )}
                     </ul>
                     {activeEngine &&
-                        <>
-                            <button onClick={onEnginePlayerAdd} className='border px-2 mt-2'>Add as player</button>
-                        </>
+                        <div className='flex gap-2'>
+                            {game.bPlayer !== activeEngine &&
+                                <button className='border px-2' onClick={() => game.setWPlayer(activeEngine)}>Set as white</button>
+                            }
+                            {game.wPlayer !== activeEngine &&
+                                <button className='border px-2' onClick={() => game.setBPlayer(activeEngine)}>Set as black</button>
+                            }
+                        </div>
                     }
                 </div>
             }
@@ -131,10 +124,9 @@ export default function GameController() {
                     <div className='mt-8'>
                         <h2 className='text-2xl'>One-click commands</h2>
                         <div className='flex gap-4'>
-                            <button className='border px-2' onClick={() => sendMutation.mutate('init')}>New game</button>
                             <button className='border px-2' onClick={onSyncToEngine}>Get engines board</button>
                             <button className='border px-2' onClick={onBestMove}>Make move</button>
-                            <button className='border px-2' onClick={() => sendMutation.mutate('score')}>Get score</button>
+                            <button className='border px-2' onClick={() => sendMutation.mutate('evaluate')}>Evaluate</button>
                         </div>
                     </div>
                     <form onSubmit={onCustomCommand} className='mt-8'>
@@ -148,6 +140,39 @@ export default function GameController() {
                     {response && <p>Response: {response}</p>}
                 </>
             }
+            {game.gameState === GameState.PRE_GAME &&
+                <div className='mt-8'>
+                    <h2 className='text-2xl'>Start a new game</h2>
+                    <div className='flex'>
+                        <Select values={[
+                            ['Human', new Player()],
+                            ...game.engines.map((e) => [e.label, e] as [string, Player]),
+                        ]} onSelect={setTempWPlayer} />
+                        <p className='mx-auto'>vs</p>
+                        <Select values={[
+                            ['Human', new Player()],
+                            ...game.engines.map((e) => [e.label, e] as [string, Player]),
+                        ]} onSelect={setTempBPlayer} />
+                    </div>
+                    <button onClick={onStartGame} className='border px-2'>Start</button>
+                </div>
+            }
+            {game.gameState === GameState.GAME &&
+                <div className='mt-8'>
+                    <h2 className='text-2xl'>Game</h2>
+                    <button className='border px-2' onClick={onBestMove}>Make move</button>
+                    <button className='border px-2' onClick={onNewGame}>New game</button>
+                </div>
+            }
+            <div className=''>
+                <h2 className='text-2xl'>Game log</h2>
+                <p>
+                    {game.gameLog.map((l, i) =>
+                        <span key={i}>{`${Math.floor(i / 2) + 1}. ${l}`}<br /></span>,
+                    )}
+                </p>
+            </div>
+            <FENEditor />
         </div>
     );
 }

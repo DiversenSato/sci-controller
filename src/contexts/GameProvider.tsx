@@ -1,18 +1,27 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { GameContext } from './GameContext';
 import EngineInterface from '../core/EngineInterface';
 import Piece from '../core/Piece';
 import BoardHelper from '../core/BoardHelper';
 import Player from '../core/Player';
+import GameState from '../core/GameState';
+import { toast } from 'react-toastify';
 
 const moveAudio = new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_WEBM_/default/move-self.webm');
 
 export default function GameProvider({ children }: { children: React.ReactNode }) {
     const [FEN, setFEN] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-    const [engines, setEngines] = useState<EngineInterface[]>([]);
     const [pieces, setPieces] = useState(Array.from({ length: 64 }, () => Piece.None));
-    const [players, setPlayers] = useState<Player[]>([]);
+
+    const [engines, setEngines] = useState<EngineInterface[]>([]);
+
+    const [wPlayer, setWPlayer] = useState<Player>();
+    const [bPlayer, setBPlayer] = useState<Player>();
     const [colorToMove, setColorToMove] = useState(Piece.White);
+
+    const [state, setState] = useState<GameState>(GameState.PRE_GAME);
+    const [gameLog, setGameLog] = useState<string[]>([]);
+    const [recentMove, setRecentMove] = useState<number>(0);
 
     const loadFEN = useCallback((FEN: string) => {
         setFEN(FEN);
@@ -53,12 +62,15 @@ export default function GameProvider({ children }: { children: React.ReactNode }
         setColorToMove(fields[1] === 'w' ? Piece.White : Piece.Black);
     }, []);
 
+    // Set board up only once when this component is first rendered
+    useEffect(() => {
+        loadFEN(FEN);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     async function registerEngine(name: string, url: string) {
-        let duplicateCounter = 1;
-        const originalName = name;
-        while (engines.find((e) => e.label === name)) {
-            name = `${originalName} (${duplicateCounter})`;
-            duplicateCounter++;
+        if (engines.find((e) => e.label === name)) {
+            throw new Error('Engine already exists');
         }
 
         const engineInterface = new EngineInterface(name, new URL(url));
@@ -72,16 +84,18 @@ export default function GameProvider({ children }: { children: React.ReactNode }
 
     const removeEngine = useCallback((engine: EngineInterface) => {
         setEngines((prev) => prev.filter((e) => e !== engine));
-        setPlayers((prev) => prev.filter((player) => player.engineInterface !== engine));
     }, []);
 
     async function playMove(sourceSquare: number, targetSquare: number) {
-        const move = BoardHelper.squareIndexToAlgebraic(sourceSquare) + BoardHelper.squareIndexToAlgebraic(targetSquare);
-        for (const player of players) {
-            await player.engineInterface.sendCommand(`move ${move}`);
+        if (state !== GameState.GAME) {
+            toast.error('No active game');
+            return;
         }
 
-        void moveAudio.play();
+        const move = BoardHelper.squareIndexToAlgebraic(sourceSquare) + BoardHelper.squareIndexToAlgebraic(targetSquare);
+
+        if (wPlayer instanceof EngineInterface) await wPlayer.sendCommand(`makeMove ${move}`);
+        if (bPlayer instanceof EngineInterface) await bPlayer.sendCommand(`makeMove ${move}`);
 
         const piecesCopy = [...pieces];
         const sourcePiece = piecesCopy[sourceSquare];
@@ -98,19 +112,23 @@ export default function GameProvider({ children }: { children: React.ReactNode }
         }
 
         setPieces(piecesCopy);
-    }
-
-    function addPlayer(engineInterface: EngineInterface, asColor: number) {
-        if (players.find((p) => p.side === asColor)) throw new Error('This color already has a player');
-        if (players.find((p) => p.engineInterface === engineInterface)) throw new Error('Engine already added as a player');
-
-        setPlayers((prev) => [...prev, new Player(asColor, engineInterface)]);
+        void moveAudio.play();
+        setGameLog((prev) => [...prev, move]);
+        setColorToMove(colorToMove === Piece.Black ? Piece.White : Piece.Black);
+        setRecentMove((sourceSquare << 6) + targetSquare);
     }
 
     function getPlayerToMove() {
-        const player = players.find((player) => player.side === colorToMove);
-        if (!player) throw new Error('Player not found');
-        return player;
+        if (colorToMove === Piece.White) return wPlayer;
+        return bPlayer;
+    }
+
+    async function startGame(wPlayer: Player, bPlayer: Player) {
+        if (wPlayer instanceof EngineInterface) await wPlayer.sendCommand(`newGame`);
+        if (bPlayer instanceof EngineInterface) await bPlayer.sendCommand(`newGame`);
+        setState(GameState.GAME);
+        setWPlayer(wPlayer);
+        setBPlayer(bPlayer);
     }
 
     return (
@@ -118,15 +136,24 @@ export default function GameProvider({ children }: { children: React.ReactNode }
             FEN,
             loadFEN,
             pieces,
+
             engines,
             registerEngine,
             getEngine,
             removeEngine,
-            players,
-            addPlayer,
+
+            wPlayer,
+            bPlayer,
+            setWPlayer,
+            setBPlayer,
             getPlayerToMove,
             playMove,
-            gameLog: [],
+
+            gameState: state,
+            gameLog,
+            clearLog: () => setGameLog([]),
+            recentMove,
+            startGame,
         }}>
             {children}
         </GameContext.Provider>

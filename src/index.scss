@@ -6,6 +6,11 @@
     position: relative;
     background-image: url("https://images.chesscomfiles.com/chess-themes/boards/green/200.png");
     background-size: 100%;
+
+    --size: calc(100dvh - (3rem + 1rem + 0.5rem) * 2);
+    width: var(--size);
+    min-width: var(--size);
+    height: var(--size);
 }
 
 .piece {
