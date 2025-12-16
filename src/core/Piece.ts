@@ -35,13 +35,20 @@ export default class Piece {
     public static toSymbol(piece: number): string {
         const symbol = (() => {
             switch (Piece.type(piece)) {
-                case Piece.King: return 'K';
-                case Piece.Pawn: return 'P';
-                case Piece.Knight: return 'N';
-                case Piece.Bishop: return 'B';
-                case Piece.Rook: return 'R';
-                case Piece.Queen: return 'Q';
-                default: return '.';
+                case Piece.King:
+                    return 'K';
+                case Piece.Pawn:
+                    return 'P';
+                case Piece.Knight:
+                    return 'N';
+                case Piece.Bishop:
+                    return 'B';
+                case Piece.Rook:
+                    return 'R';
+                case Piece.Queen:
+                    return 'Q';
+                default:
+                    return '.';
             }
         })();
 

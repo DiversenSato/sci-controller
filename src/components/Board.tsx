@@ -14,10 +14,10 @@ export default function Board() {
     return (
         <div className='py-4'>
             <div className='mb-2'>
-                <PlayerIcons player={game.bPlayer} />
+                <PlayerIcons color='Black' player={game.bPlayer} />
             </div>
             <div className='board'>
-                {game.recentMove &&
+                {game.recentMove && (
                     <>
                         <svg className={`piece square-${from.x + 1}${from.y + 1}`}>
                             <rect width='100%' height='100%' fill='yellow' opacity='50%' />
@@ -26,17 +26,17 @@ export default function Board() {
                             <rect width='100%' height='100%' fill='yellow' opacity='50%' />
                         </svg>
                     </>
-                }
-                {game.pieces.map((piece, i) => piece ? <Piece piece={piece} squareIndex={i} key={i} /> : undefined)}
+                )}
+                {game.pieces.map((piece, i) => (piece ? <Piece piece={piece} squareIndex={i} key={i} /> : undefined))}
             </div>
             <div className='mt-2'>
-                <PlayerIcons player={game.wPlayer} />
+                <PlayerIcons color='White' player={game.wPlayer} />
             </div>
         </div>
     );
 }
 
-function Piece({ piece, squareIndex }: { piece: number, squareIndex: number }) {
+function Piece({ piece, squareIndex }: { piece: number; squareIndex: number }) {
     const game = useGame();
     const canMove = game.getPlayerToMove()?.label === 'human';
 
@@ -50,10 +50,7 @@ function Piece({ piece, squareIndex }: { piece: number, squareIndex: number }) {
 
         if (squareIndex === BoardHelper.positionToSquareIndex(file, rank)) return;
 
-        await game.playMove(
-            squareIndex,
-            BoardHelper.positionToSquareIndex(file, rank),
-        );
+        await game.playMove(squareIndex, BoardHelper.positionToSquareIndex(file, rank));
     }
 
     return (
@@ -65,14 +62,12 @@ function Piece({ piece, squareIndex }: { piece: number, squareIndex: number }) {
     );
 }
 
-function PlayerIcons({ player }: { player?: Player }) {
-    if (!player) return;
-
+function PlayerIcons({ color, player }: { color: 'White' | 'Black'; player?: Player }) {
     return (
         <div className='flex gap-2'>
-            <img src={player.pfp} alt='Picture of a pawn' className='w-12' />
+            <img src={player?.pfp} width={48} height={48} />
             <div className='flex flex-col'>
-                <p>{player.label}</p>
+                <p>{player?.label ?? color}</p>
             </div>
         </div>
     );

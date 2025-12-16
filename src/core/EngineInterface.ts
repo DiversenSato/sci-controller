@@ -4,7 +4,7 @@ import Player from './Player';
 export default class EngineInterface extends Player {
     public constructor(
         label: string,
-        public readonly URL: URL,
+        public readonly URL: URL
     ) {
         super(label);
 

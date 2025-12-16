@@ -36,9 +36,17 @@ export default function RegisterEngine() {
             </FormGroup>
             <FormGroup>
                 <label htmlFor={newEngineNameID}>Engine name*</label>
-                <Input type='text' id={newEngineNameID} name='newEngineName' placeholder='Example: stockfish' required />
+                <Input
+                    type='text'
+                    id={newEngineNameID}
+                    name='newEngineName'
+                    placeholder='Example: stockfish'
+                    required
+                />
             </FormGroup>
-            <button className='border px-2' type='submit'>Register</button>
+            <button className='border px-2' type='submit'>
+                Register
+            </button>
         </form>
     );
 }

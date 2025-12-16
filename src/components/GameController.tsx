@@ -38,12 +38,8 @@ export default function GameController() {
         },
     });
 
-    async function onNewGame() {
-        if (game.wPlayer instanceof EngineInterface) await game.wPlayer.sendCommand('newGame');
-        if (game.bPlayer instanceof EngineInterface) await game.bPlayer.sendCommand('newGame');
-        game.clearLog();
-        game.loadFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-        game.gameState = GameState.PRE_GAME;
+    function onNewGame() {
+        game.newGame();
     }
 
     function onCustomCommand(e: FormEvent<HTMLFormElement>) {
@@ -94,85 +90,125 @@ export default function GameController() {
 
     return (
         <div className='grow py-4'>
-            <RegisterEngine />
-            {game.engines.length > 0 &&
-                <div className='mt-8'>
-                    <h2 className='text-2xl'>Engines</h2>
-                    <p>Click on an engine to select it</p>
-                    <ul>
-                        {game.engines.map((engine) =>
-                            <li onClick={() => setActiveEngine(engine)} className={'flex border p-2 cursor-pointer' + (engine === activeEngine ? ' bg-green-100' : '')} key={engine.label}>
-                                <p className='grow'>{engine.label}</p>
-                                <button onClick={(e) => onEngineRemove(e, engine)} className='px-2'>X</button>
-                            </li>,
-                        )}
-                    </ul>
-                    {activeEngine &&
-                        <div className='flex gap-2'>
-                            {game.bPlayer !== activeEngine &&
-                                <button className='border px-2' onClick={() => game.setWPlayer(activeEngine)}>Set as white</button>
-                            }
-                            {game.wPlayer !== activeEngine &&
-                                <button className='border px-2' onClick={() => game.setBPlayer(activeEngine)}>Set as black</button>
-                            }
+            {game.gameState === GameState.SETUP && (
+                <>
+                    <RegisterEngine />
+                    {game.engines.length > 0 && (
+                        <div className='mt-8'>
+                            <h2 className='text-2xl'>Engines</h2>
+                            <p>Click on an engine to select it</p>
+                            <ul>
+                                {game.engines.map((engine) => (
+                                    <li
+                                        onClick={() =>
+                                            setActiveEngine((active) => (active === engine ? undefined : engine))
+                                        }
+                                        className={
+                                            'flex border p-2 cursor-pointer' +
+                                            (engine === activeEngine ? ' bg-green-100' : '')
+                                        }
+                                        key={engine.label}
+                                    >
+                                        <p className='grow'>{engine.label}</p>
+                                        <button onClick={(e) => onEngineRemove(e, engine)} className='px-2'>
+                                            X
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
-                    }
-                </div>
-            }
-            {activeEngine &&
+                    )}
+                    {activeEngine && (
+                        <>
+                            <div className='mt-8'>
+                                <h2 className='text-2xl'>Engine commands</h2>
+                                <div className='flex gap-4'>
+                                    <button className='border px-2' onClick={onSyncToEngine}>
+                                        Get engines board
+                                    </button>
+                                    <button className='border px-2' onClick={onBestMove}>
+                                        Make move
+                                    </button>
+                                    <button className='border px-2' onClick={() => sendMutation.mutate('evaluate')}>
+                                        Evaluate
+                                    </button>
+                                </div>
+                            </div>
+                            <form onSubmit={onCustomCommand} className='mt-8'>
+                                <h2 className='text-2xl'>Send a custom command</h2>
+                                <FormGroup>
+                                    <label htmlFor={customCommandInputID}>Command</label>
+                                    <Input
+                                        id={customCommandInputID}
+                                        type='text'
+                                        value={command}
+                                        onChange={(e) => setCommand(e.target.value)}
+                                        placeholder='Example: search 28'
+                                    />
+                                </FormGroup>
+                                <button type='submit' className='border px-2'>
+                                    send
+                                </button>
+                            </form>
+                            {response && <p>Response: {response}</p>}
+                        </>
+                    )}
+                    <section className='mt-8'>
+                        <h2 className='text-2xl'>Start a new game</h2>
+                        <div className='flex'>
+                            <Select
+                                values={[
+                                    ['Human', new Player()],
+                                    ...game.engines.map((e) => [e.label, e] as [string, Player]),
+                                ]}
+                                onSelect={setTempWPlayer}
+                            />
+                            <p className='mx-auto'>vs</p>
+                            <Select
+                                values={[
+                                    ['Human', new Player()],
+                                    ...game.engines.map((e) => [e.label, e] as [string, Player]),
+                                ]}
+                                onSelect={setTempBPlayer}
+                            />
+                        </div>
+                        <button onClick={onStartGame} className='border px-2'>
+                            Start
+                        </button>
+                    </section>
+                    <FENEditor />
+                </>
+            )}
+            {game.gameState === GameState.GAME && (
                 <>
                     <div className='mt-8'>
-                        <h2 className='text-2xl'>One-click commands</h2>
-                        <div className='flex gap-4'>
-                            <button className='border px-2' onClick={onSyncToEngine}>Get engines board</button>
-                            <button className='border px-2' onClick={onBestMove}>Make move</button>
-                            <button className='border px-2' onClick={() => sendMutation.mutate('evaluate')}>Evaluate</button>
+                        <h2 className='text-2xl'>Game</h2>
+                        <button className='border px-2 me-2' onClick={onBestMove}>
+                            Make move / start game
+                        </button>
+                        <button className='border px-2' onClick={onNewGame}>
+                            New game
+                        </button>
+                    </div>
+                    <div className='mt-4'>
+                        <h2 className='text-2xl'>Game log</h2>
+                        <div
+                            className='grid max-h-80 overflow-y-auto'
+                            style={{
+                                gridTemplateColumns: 'auto repeat(3, 1fr)',
+                            }}
+                        >
+                            {new Array(Math.ceil(game.gameLog.length / 2)).fill(0).map((_, i) => (
+                                <div className='grid grid-cols-subgrid col-span-4' key={i}>
+                                    <p className='font-bold min-w-24'>{i + 1}.</p>
+                                    <p>{game.gameLog[i * 2]}</p>
+                                    {game.gameLog[i * 2 + 1] && <p>{game.gameLog[i * 2 + 1] ?? ''}</p>}
+                                </div>
+                            ))}
                         </div>
                     </div>
-                    <form onSubmit={onCustomCommand} className='mt-8'>
-                        <h2 className='text-2xl'>Send a custom command</h2>
-                        <FormGroup>
-                            <label htmlFor={customCommandInputID}>Command</label>
-                            <Input id={customCommandInputID} type='text' value={command} onChange={(e) => setCommand(e.target.value)} placeholder='Example: search 28' />
-                        </FormGroup>
-                        <button type='submit' className='border px-2'>send</button>
-                    </form>
-                    {response && <p>Response: {response}</p>}
                 </>
-            }
-            {game.gameState === GameState.PRE_GAME &&
-                <div className='mt-8'>
-                    <h2 className='text-2xl'>Start a new game</h2>
-                    <div className='flex'>
-                        <Select values={[
-                            ['Human', new Player()],
-                            ...game.engines.map((e) => [e.label, e] as [string, Player]),
-                        ]} onSelect={setTempWPlayer} />
-                        <p className='mx-auto'>vs</p>
-                        <Select values={[
-                            ['Human', new Player()],
-                            ...game.engines.map((e) => [e.label, e] as [string, Player]),
-                        ]} onSelect={setTempBPlayer} />
-                    </div>
-                    <button onClick={onStartGame} className='border px-2'>Start</button>
-                </div>
-            }
-            {game.gameState === GameState.GAME &&
-                <div className='mt-8'>
-                    <h2 className='text-2xl'>Game</h2>
-                    <button className='border px-2' onClick={onBestMove}>Make move</button>
-                    <button className='border px-2' onClick={onNewGame}>New game</button>
-                </div>
-            }
-            <div className=''>
-                <h2 className='text-2xl'>Game log</h2>
-                <p>
-                    {game.gameLog.map((l, i) =>
-                        <span key={i}>{`${Math.floor(i / 2) + 1}. ${l}`}<br /></span>,
-                    )}
-                </p>
-            </div>
-            <FENEditor />
+            )}
         </div>
     );
 }

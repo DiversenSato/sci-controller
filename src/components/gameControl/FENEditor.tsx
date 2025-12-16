@@ -20,8 +20,16 @@ export default function FENEditor() {
     }
 
     return (
-        <form onSubmit={onSetFEN} className='mt-4'>
-            <input value={FEN} onChange={(e) => setFEN(e.target.value)} onBlur={onCancel} className={'focus:border block w-full'} />
-        </form>
+        <div className='mt-8'>
+            <h2 className='text-2xl'>Edit FEN</h2>
+            <form onSubmit={onSetFEN}>
+                <input
+                    value={FEN}
+                    onChange={(e) => setFEN(e.target.value)}
+                    onBlur={onCancel}
+                    className={'focus:border block w-full bg-gray-100 p-1'}
+                />
+            </form>
+        </div>
     );
 }

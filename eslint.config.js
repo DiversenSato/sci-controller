@@ -35,7 +35,7 @@ export default tslint.config(
             ],
             'stylistic/eol-last': ['error', 'always'],
             'stylistic/brace-style': ['error', '1tbs'],
-            'stylistic/comma-dangle': ['error', 'always-multiline'],
+            'stylistic/comma-dangle': ['off'],
             'stylistic/indent': ['warn', 4],
             'stylistic/no-extra-semi': 'error',
             'stylistic/semi': 'error',

@@ -1,5 +1,5 @@
 enum GameState {
-    PRE_GAME = 0,
+    SETUP = 0,
     GAME = 1,
 }
 

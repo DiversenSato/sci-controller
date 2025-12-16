@@ -18,10 +18,10 @@ export default function GameProvider({ children }: { children: React.ReactNode }
     const [wPlayer, setWPlayer] = useState<Player>();
     const [bPlayer, setBPlayer] = useState<Player>();
 
-    const [state, setState] = useState<GameState>(GameState.PRE_GAME);
+    const [state, setState] = useState<GameState>(GameState.SETUP);
     const [gameLog, setGameLog] = useState<string[]>([]);
     const [recentMove, setRecentMove] = useState<number>(0);
-    
+
     const colorToMoveRef = useRef(Piece.White);
 
     const loadFEN = useCallback((FEN: string) => {
@@ -30,8 +30,12 @@ export default function GameProvider({ children }: { children: React.ReactNode }
         const newPieces = Array.from({ length: 64 }, () => Piece.None);
 
         const pieceDict = new Map<string, number>([
-            ['k', Piece.King], ['p', Piece.Pawn], ['n', Piece.Knight],
-            ['b', Piece.Bishop], ['r', Piece.Rook], ['q', Piece.Queen],
+            ['k', Piece.King],
+            ['p', Piece.Pawn],
+            ['n', Piece.Knight],
+            ['b', Piece.Bishop],
+            ['r', Piece.Rook],
+            ['q', Piece.Queen],
         ]);
 
         let rank = 7;
@@ -75,13 +79,17 @@ export default function GameProvider({ children }: { children: React.ReactNode }
         }
 
         const engineInterface = new EngineInterface(name, new URL(url));
-        if (await engineInterface.sendCommand('sciokay') !== 'sciokay') throw new Error('Engine is not SCI compatible');
+        if ((await engineInterface.sendCommand('sciokay')) !== 'sciokay')
+            throw new Error('Engine is not SCI compatible');
         setEngines((prev) => [...prev, engineInterface]);
     }
 
-    const getEngine = useCallback((name: string) => {
-        return engines.find((e) => e.label === name);
-    }, [engines]);
+    const getEngine = useCallback(
+        (name: string) => {
+            return engines.find((e) => e.label === name);
+        },
+        [engines]
+    );
 
     const removeEngine = useCallback((engine: EngineInterface) => {
         setEngines((prev) => prev.filter((e) => e !== engine));
@@ -93,7 +101,8 @@ export default function GameProvider({ children }: { children: React.ReactNode }
             return;
         }
 
-        const move = BoardHelper.squareIndexToAlgebraic(sourceSquare) + BoardHelper.squareIndexToAlgebraic(targetSquare);
+        const move =
+            BoardHelper.squareIndexToAlgebraic(sourceSquare) + BoardHelper.squareIndexToAlgebraic(targetSquare);
 
         setPieces((prev) => {
             const copy = [...prev];
@@ -131,30 +140,42 @@ export default function GameProvider({ children }: { children: React.ReactNode }
         setBPlayer(bPlayer);
     }
 
+    function newGame() {
+        setState(GameState.SETUP);
+        setGameLog([]);
+        loadFEN('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+        setWPlayer(undefined);
+        setBPlayer(undefined);
+        setRecentMove(0);
+    }
+
     return (
-        <GameContext.Provider value={{
-            FEN,
-            loadFEN,
-            pieces,
+        <GameContext.Provider
+            value={{
+                FEN,
+                loadFEN,
+                pieces,
 
-            engines,
-            registerEngine,
-            getEngine,
-            removeEngine,
+                engines,
+                registerEngine,
+                getEngine,
+                removeEngine,
 
-            wPlayer,
-            bPlayer,
-            setWPlayer,
-            setBPlayer,
-            getPlayerToMove,
-            playMove,
+                wPlayer,
+                bPlayer,
+                setWPlayer,
+                setBPlayer,
+                getPlayerToMove,
+                playMove,
 
-            gameState: state,
-            gameLog,
-            clearLog: () => setGameLog([]),
-            recentMove,
-            startGame,
-        }}>
+                gameState: state,
+                gameLog,
+                clearLog: () => setGameLog([]),
+                recentMove,
+                startGame,
+                newGame,
+            }}
+        >
             {children}
         </GameContext.Provider>
     );
