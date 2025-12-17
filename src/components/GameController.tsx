@@ -89,12 +89,12 @@ export default function GameController() {
     }
 
     return (
-        <div className='grow py-4'>
+        <div className='grow bg-zinc-700 my-[72px] rounded-xl p-4 overflow-y-auto'>
             {game.gameState === GameState.SETUP && (
                 <>
                     <RegisterEngine />
                     {game.engines.length > 0 && (
-                        <div className='mt-8'>
+                        <div>
                             <h2 className='text-2xl'>Engines</h2>
                             <p>Click on an engine to select it</p>
                             <ul>

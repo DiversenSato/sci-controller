@@ -2,9 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+    @apply bg-zinc-900;
+    color-scheme: dark;
+    color: white;
+}
+
 .board {
     position: relative;
-    background-image: url("https://images.chesscomfiles.com/chess-themes/boards/green/200.png");
+    background-image: url('https://images.chesscomfiles.com/chess-themes/boards/green/200.png');
     background-size: 100%;
 
     --size: calc(100dvh - (3rem + 1rem + 0.5rem) * 2);
@@ -28,7 +34,7 @@
     @each $piece in $pieces {
         @each $color in $colors {
             &.#{$color}#{$piece} {
-                background-image: url("https://images.chesscomfiles.com/chess-themes/pieces/icy_sea/150/#{$color}#{$piece}.png");
+                background-image: url('https://images.chesscomfiles.com/chess-themes/pieces/icy_sea/150/#{$color}#{$piece}.png');
             }
         }
     }

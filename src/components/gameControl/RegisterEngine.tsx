@@ -27,7 +27,7 @@ export default function RegisterEngine() {
     }
 
     return (
-        <form onSubmit={onRegister} className='mt-8'>
+        <form onSubmit={onRegister}>
             <h2 className='text-2xl'>Register a new engine</h2>
             <FormGroup>
                 <label htmlFor={newEngineURLID}>Engine URL*</label>

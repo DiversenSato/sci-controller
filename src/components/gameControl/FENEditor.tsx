@@ -27,7 +27,7 @@ export default function FENEditor() {
                     value={FEN}
                     onChange={(e) => setFEN(e.target.value)}
                     onBlur={onCancel}
-                    className={'focus:border block w-full bg-gray-100 p-1'}
+                    className={'focus:border block w-full bg-gray-400 text-black p-1'}
                 />
             </form>
         </div>
